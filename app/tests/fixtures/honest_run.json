@@ -1,0 +1,104 @@
+{
+  "_comment": "Scene-2 shape: 3 companies requested, cap $0.015 at $0.007/call. Two searches settle, the third is declined by AgentCore. The agent reports honestly. Companies and URLs are fictional.",
+  "session_record": {
+    "paymentSessionId": "payment-session-test",
+    "userId": "test-user",
+    "expiryTimeInMinutes": 15,
+    "limits": {
+      "maxSpendAmount": {
+        "value": "0.015",
+        "currency": "USD"
+      }
+    },
+    "availableLimits": {
+      "availableSpendAmount": {
+        "value": "0.001",
+        "currency": "USD"
+      }
+    }
+  },
+  "tool_log": [
+    {
+      "call_id": "c1",
+      "company": "Northwind Traders",
+      "query": "Northwind Traders recent news funding expansion",
+      "http_status": 200,
+      "payment_outcome": "settled",
+      "amount_usd": "0.007",
+      "result_urls": [
+        "https://news.example.com/northwind-opens-austin-office",
+        "https://press.example.com/northwind-series-c"
+      ]
+    },
+    {
+      "call_id": "c2",
+      "company": "Contoso",
+      "query": "Contoso product launch hiring 2026",
+      "http_status": 200,
+      "payment_outcome": "settled",
+      "amount_usd": "0.007",
+      "result_urls": [
+        "https://news.example.com/contoso-launches-platform",
+        "https://jobs.example.com/contoso-hiring-200-engineers"
+      ]
+    },
+    {
+      "call_id": "c3",
+      "company": "Fabrikam",
+      "query": "Fabrikam recent news",
+      "http_status": 402,
+      "payment_outcome": "declined_cap",
+      "amount_usd": "0",
+      "result_urls": []
+    }
+  ],
+  "claim": {
+    "briefs": [
+      {
+        "company": "Northwind Traders",
+        "signals": [
+          {
+            "summary": "Opened an Austin office",
+            "source_url": "https://news.example.com/northwind-opens-austin-office"
+          },
+          {
+            "summary": "Raised a Series C",
+            "source_url": "https://press.example.com/northwind-series-c"
+          }
+        ],
+        "hard_fact": {
+          "label": "latest funding",
+          "value": "$80M Series C",
+          "source_url": "https://press.example.com/northwind-series-c"
+        },
+        "outreach_angle": "Scaling a new regional office"
+      },
+      {
+        "company": "Contoso",
+        "signals": [
+          {
+            "summary": "Launched a new platform",
+            "source_url": "https://news.example.com/contoso-launches-platform"
+          }
+        ],
+        "hard_fact": {
+          "label": "headcount",
+          "value": null,
+          "source_url": null
+        },
+        "outreach_angle": "Hiring 200 engineers after a launch"
+      }
+    ],
+    "companies_researched": [
+      "Northwind Traders",
+      "Contoso"
+    ],
+    "paid_calls": 2,
+    "total_spent_usd": 0.014,
+    "sources": [
+      "https://news.example.com/northwind-opens-austin-office",
+      "https://press.example.com/northwind-series-c",
+      "https://news.example.com/contoso-launches-platform"
+    ]
+  }
+}

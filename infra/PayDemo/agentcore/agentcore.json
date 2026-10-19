@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.agentcore.aws.dev/v1/agentcore.json",
+  "name": "PayDemo",
+  "version": 1,
+  "managedBy": "CDK",
+  "tags": {
+    "agentcore:created-by": "agentcore-cli",
+    "agentcore:project-name": "PayDemo",
+    "agentcore:onboarding-source": "agent-toolkit-skill"
+  },
+  "runtimes": [],
+  "memories": [],
+  "knowledgeBases": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": [],
+  "policyEngines": [],
+  "configBundles": [],
+  "abTests": [],
+  "harnesses": [],
+  "datasets": [],
+  "capacityProviders": [],
+  "payments": [
+    {
+      "name": "PayDemoTestnet",
+      "authorizerType": "AWS_IAM",
+      "connectors": [
+        {
+          "name": "CoinbaseTestnetB",
+          "provider": "CoinbaseCDP",
+          "provisionMode": "QUICK_CREATE"
+        }
+      ],
+      "description": "Testnet Base Sepolia payments for the demo",
+      "autoPayment": true,
+      "defaultSpendLimit": "10.00",
+      "networkPreferences": [
+        "eip155:84532"
+      ]
+    },
+    {
+      "name": "PayDemoMainnet",
+      "authorizerType": "AWS_IAM",
+      "connectors": [
+        {
+          "name": "CoinbaseMainnetB",
+          "provider": "CoinbaseCDP",
+          "provisionMode": "QUICK_CREATE"
+        }
+      ],
+      "description": "Mainnet Base payments for the demo",
+      "autoPayment": true,
+      "defaultSpendLimit": "1.00",
+      "networkPreferences": [
+        "eip155:8453"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+# Secrets and local config — never commit
+.env
+.env.*
+!.env.example
+**/agentcore/.env.local
+
+# AgentCore CLI local state and deploy target (account-specific ARNs/IDs)
+**/agentcore/.cli/
+**/agentcore/aws-targets.json
+**/agentcore/cdk/cdk.out/
+**/agentcore/cdk/node_modules/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Saved demo runs (local only)
+runs/*
+!runs/.gitkeep
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

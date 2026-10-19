@@ -1,0 +1,26 @@
+[project]
+name = "keep-the-model-away-from-the-money"
+version = "0.1.0"
+description = "Demo: an AI agent pays for a real x402 API via Amazon Bedrock AgentCore Payments, and app code verifies what it reports."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+dependencies = [
+    "bedrock-agentcore>=1.24.1",
+    "fastapi>=0.143.3",
+    "httpx>=0.28.1",
+    "pydantic>=2.14.1",
+    "python-dotenv>=1.2.4",
+    "strands-agents>=1.61.1",
+    "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["app/tests", "agent/tests"]

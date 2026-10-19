@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Payments Demo</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #111418; --muted: #5b6470; --line: #dde1e6;
+    --ok: #13795b; --ok-bg: #e3f4ec; --bad: #c0262d; --bad-bg: #fbe6e7;
+    --warn: #8a5a00; --warn-bg: #fdf1d8; --accent: #2457c5; --accent-bg: #e6edfb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #181c22; --text: #eef1f4; --muted: #9aa4b1; --line: #2a3038;
+      --ok: #4cc79a; --ok-bg: #12352a; --bad: #ff6b6f; --bad-bg: #3d1719;
+      --warn: #f0b84a; --warn-bg: #3a2c0e; --accent: #7aa2ff; --accent-bg: #1a2742;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--accent); }
+  header, main { padding: 0 24px; max-width: 1600px; margin: 0 auto; }
+  header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding-top: 16px; padding-bottom: 8px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+  input, select, button { font: inherit; font-size: 16px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  input.wide { width: min(420px, 80vw); }
+  input.narrow { width: 90px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 700; padding: 8px 22px; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.info { background: var(--accent-bg); color: var(--accent); }
+  .wallet { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 16px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+  .muted { color: var(--muted); }
+  #banner { display: none; margin-top: 12px; }
+  .runinfo { margin-top: 12px; font-size: 16px; }
+  .ceiling { font-size: 13px; }
+  .runinfo b { color: var(--text); }
+  #banner.show { display: block; }
+
+  /* The centerpiece: what the agent said vs what the system recorded */
+  .versus { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .versus .panel { padding: 18px 22px; }
+  .versus h3 { margin: 0 0 8px; font-size: 18px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 28px; }
+  .stat b { display: block; font-size: 44px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 15px; }
+  .stat.mismatch b { color: var(--bad); }
+  .said { border-left: 6px solid var(--warn); }
+  .recorded { border-left: 6px solid var(--ok); }
+
+  .cols { display: grid; grid-template-columns: 1.3fr 1fr 1.2fr; gap: 16px; }
+  .call { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .call:first-of-type { border-top: 0; }
+  .call .company { font-weight: 600; }
+  .call .detail { grid-column: 1 / -1; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+  .bar { height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; margin: 10px 0 14px; }
+  .bar div { height: 100%; background: var(--accent); width: 0; transition: width .4s; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .check { display: grid; grid-template-columns: 28px 1fr; gap: 2px 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .check:first-of-type { border-top: 0; }
+  .check .mark { font-weight: 700; }
+  .check .vs { grid-column: 2; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+  .verdict { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+
+  .briefs-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin: 22px 0 12px; }
+  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .toggle button { border: 0; border-radius: 0; padding: 10px 22px; font-weight: 600; }
+  .toggle button.on { background: var(--text); color: var(--bg); }
+  .briefs { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; padding-bottom: 32px; }
+  .brief h3 { margin: 6px 0 10px; font-size: 20px; }
+  .brief ul { margin: 0 0 10px; padding-left: 20px; }
+  .brief li { margin-bottom: 6px; }
+  .brief .src { font-size: 14px; overflow-wrap: anywhere; }
+  .brief.unverified { border: 2px dashed var(--warn); }
+  .brief.blocked { border: 2px solid var(--bad); background: var(--bad-bg); }
+  .empty { color: var(--muted); font-style: italic; }
+
+  .tabs { display: flex; gap: 4px; max-width: 1600px; margin: 0 auto 12px; padding: 0 24px; }
+  .tabs button { border-radius: 8px 8px 0 0; padding: 8px 24px; font-weight: 600; }
+  .tabs button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .banner { display: none; margin-top: 12px; }
+  .banner.show { display: block; }
+  .chat-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; margin-top: 16px; padding-bottom: 32px; }
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  .chat { display: flex; flex-direction: column; min-height: 560px; }
+  .transcript { flex: 1; overflow-y: auto; max-height: 64vh; display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; overflow-wrap: anywhere; }
+  .msg p { margin: 0 0 6px; } .msg p:last-child { margin: 0; }
+  .msg ul { margin: 4px 0 6px; padding-left: 20px; }
+  .msg.user { align-self: flex-end; background: var(--accent-bg); }
+  .msg.agent { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); }
+  .msg.note { align-self: center; color: var(--muted); font-size: 15px; font-style: italic; }
+  .chat-toggle { margin-left: auto; }
+  .msg .label { display: block; margin-bottom: 6px; }
+  .msg.blocked { background: var(--bad-bg); border: 2px solid var(--bad); }
+  .msg.unverified { border: 2px dashed var(--warn); }
+  .msg .unbacked, .msg .unbacked a { color: var(--bad); font-weight: 600; }
+  .msg.report { align-self: stretch; max-width: none; background: var(--panel); border: 1px solid var(--line); }
+  .msg.report ul { list-style: none; padding-left: 0; }
+  .chat-form { display: flex; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .chat-form input { flex: 1; }
+  @media (max-width: 1100px) { .cols, .chat-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) {
+    header, main { padding: 0 16px; }
+    .versus { grid-template-columns: 1fr; }
+    .briefs { grid-template-columns: 1fr; }
+    .stat b { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>GTM research agent · AgentCore Payments</h1>
+  <div class="wallet">
+    <label>Network <select id="env"></select></label>
+    <span id="network" class="pill info">…</span>
+    <span>Wallet <a id="address" class="mono" target="_blank" rel="noopener">…</a></span>
+    <span>Balance <b id="balance">…</b></span>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button id="tab-run" class="on">Run</button>
+  <button id="tab-chat">Chat</button>
+</nav>
+
+<main>
+<div id="view-run">
+  <section class="panel">
+    <div class="row">
+      <label>Accounts (comma-separated) <input id="companies" class="wide" value="JLL, CBRE, Cushman & Wakefield"></label>
+      <label>What we sell <input id="offering" class="wide" value="AI lease abstraction for commercial real estate teams"></label>
+      <label>Prompt
+        <select id="prompt"><option value="neutral">neutral</option><option value="pressure">pressure</option></select>
+      </label>
+      <label>Session cap $ <input id="budget" class="narrow" value="0.015"><span class="ceiling"></span></label>
+      <button id="run" class="primary">Run</button>
+      <label>Replay a saved run <select id="saved"><option value="">…</option></select></label>
+    </div>
+    <div id="runinfo" class="runinfo muted">No run on screen.</div>
+    <div id="banner" class="pill bad"></div>
+  </section>
+
+  <section class="versus">
+    <div class="panel said">
+      <h3>What the agent said</h3>
+      <div class="stats">
+        <div class="stat" id="said-calls"><b>–</b><span>paid searches</span></div>
+        <div class="stat" id="said-spent"><b>–</b><span>spent</span></div>
+        <div class="stat" id="said-briefs"><b>–</b><span>briefs delivered</span></div>
+      </div>
+    </div>
+    <div class="panel recorded">
+      <h3>What the system recorded</h3>
+      <div class="stats">
+        <div class="stat" id="rec-calls"><b>–</b><span>settled payments (tool log)</span></div>
+        <div class="stat" id="rec-spent"><b>–</b><span>spent (AgentCore)</span></div>
+        <div class="stat" id="rec-declined"><b>–</b><span>declined</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cols">
+    <div class="panel">
+      <h2>Payments, live · written by app code</h2>
+      <div id="calls"><p class="empty">No run yet.</p></div>
+    </div>
+    <div class="panel">
+      <h2>Payment session · from AgentCore</h2>
+      <div class="bar"><div id="s-bar"></div></div>
+      <dl>
+        <dt>Cap</dt><dd id="s-cap">–</dd>
+        <dt>Spent</dt><dd id="s-spent">–</dd>
+        <dt>Available</dt><dd id="s-available">–</dd>
+        <dt>Expires after</dt><dd id="s-expiry">–</dd>
+        <dt>Session</dt><dd id="s-id" class="mono">–</dd>
+        <dt>AWS record</dt><dd id="s-aws">–</dd>
+      </dl>
+    </div>
+    <div class="panel">
+      <h2>Verifier · your code</h2>
+      <div id="verdict" class="verdict muted">–</div>
+      <div id="checks"></div>
+    </div>
+  </section>
+
+  <div class="briefs-head">
+    <h2 style="margin:0">Account briefs</h2>
+    <div class="toggle">
+      <button id="mode-ungoverned">Ungoverned</button>
+      <button id="mode-governed">Governed</button>
+    </div>
+  </div>
+  <section id="briefs" class="briefs"><p class="empty">Briefs appear when the run finishes.</p></section>
+</div>
+
+<div id="view-chat" hidden>
+  <section class="panel">
+    <div class="row">
+      <label>Chat session cap $ <input id="chat-budget" class="narrow" value="0.02"><span class="ceiling"></span></label>
+      <button id="chat-start" class="primary">Start a new chat</button>
+      <button id="chat-verify" disabled>Verify now</button>
+      <div class="toggle chat-toggle">
+        <button id="chat-mode-ungoverned">Ungoverned</button>
+        <button id="chat-mode-governed">Governed</button>
+      </div>
+    </div>
+    <div id="chat-info" class="runinfo muted">One chat = one AgentCore payment session, created by app code with the cap above. The agent has one tool: a paid search.</div>
+    <div id="chat-banner" class="pill bad banner"></div>
+  </section>
+  <section class="chat-grid">
+    <div class="panel chat">
+      <div id="transcript" class="transcript"><p class="empty">Start a chat, then ask about a company. Try telling the agent the budget was raised.</p></div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-text" placeholder="Ask about a target account…" maxlength="1000" autocomplete="off" disabled>
+        <button id="chat-send" class="primary" disabled>Send</button>
+      </form>
+    </div>
+    <div class="side">
+      <div class="panel">
+        <h2>Payments, live · written by app code</h2>
+        <div id="c-calls"><p class="empty">No searches yet.</p></div>
+      </div>
+      <div class="panel">
+        <h2>Payment session · from AgentCore</h2>
+        <div class="bar"><div id="cs-bar"></div></div>
+        <dl>
+          <dt>Cap</dt><dd id="cs-cap">–</dd>
+          <dt>Spent</dt><dd id="cs-spent">–</dd>
+          <dt>Available</dt><dd id="cs-available">–</dd>
+          <dt>Expires after</dt><dd id="cs-expiry">–</dd>
+          <dt>Session</dt><dd id="cs-id" class="mono">–</dd>
+          <dt>AWS record</dt><dd id="cs-aws">–</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const OUTCOMES = {
+  settled: ["ok", "settled"],
+  declined_cap: ["bad", "declined: session cap"],
+  declined_expired: ["bad", "declined: session expired"],
+  declined_policy: ["warn", "refused: price rule"],
+  error: ["bad", "error"],
+};
+let result = null;      // the finished (or replayed) run
+let calls = new Map();  // live tool-log entries by call_id
+let explorer = "https://basescan.org";
+let mode = load("mode") || "governed";
+
+// ---------- small helpers ----------
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v; else node.setAttribute(k, v);
+  }
+  for (const c of children) node.append(c ?? "");  // text is never parsed as HTML
+  return node;
+}
+function link(url, text) {
+  if (!/^https?:\/\//i.test(url || "")) return el("span", {}, url || "—");
+  return el("a", { href: url, target: "_blank", rel: "noopener" }, text || url);
+}
+function usd(v) { return v == null || v === "" ? "–" : "$" + Number(v).toFixed(3); }
+function companyKey(name) { return String(name).toLowerCase().split(/\s+/).filter(Boolean).join(" "); }
+function load(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function save(k, v) { try { localStorage.setItem(k, v); } catch {} }
+function banner(text) { $("banner").textContent = text || ""; $("banner").classList.toggle("show", !!text); }
+async function getJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+
+// ---------- header: settings file + wallet ----------
+async function loadEnvs() {
+  const envs = await getJSON("/api/envs");
+  const remembered = load("env");
+  $("env").replaceChildren(...envs.map((e) => el("option", { value: e.env }, `${e.network} (${e.env})`)));
+  if (envs.some((e) => e.env === remembered)) $("env").value = remembered;
+  const chosen = envs.find((e) => e.env === $("env").value);
+  if (chosen) $("budget").value = chosen.budget_usd;
+  // The operator's ceiling: shown so nobody is surprised when a bigger request is cut down.
+  for (const node of document.querySelectorAll(".ceiling")) {
+    node.textContent = chosen?.ceiling_usd ? `max ${usd(chosen.ceiling_usd)} (operator)` : "";
+  }
+  await loadWallet();
+}
+async function loadWallet() {
+  const env = $("env").value;
+  save("env", env);
+  $("balance").textContent = "…";
+  try {
+    const w = await getJSON(`/api/wallet?env=${encodeURIComponent(env)}`);
+    explorer = w.explorer;
+    const net = $("network");
+    net.textContent = w.network === "mainnet" ? "MAINNET · real money" : "testnet";
+    net.className = "pill " + (w.network === "mainnet" ? "bad" : "info");
+    const a = $("address");
+    a.textContent = w.address.slice(0, 6) + "…" + w.address.slice(-4);
+    a.href = `${w.explorer}/address/${w.address}`;
+    $("balance").textContent = "$" + Number(w.balance_usd).toFixed(3) + " USDC";
+  } catch (e) {
+    $("balance").textContent = "unavailable";
+    banner("Wallet read failed: " + e.message);
+  }
+}
+async function loadSaved() {
+  const runs = await getJSON("/api/runs");
+  $("saved").replaceChildren(
+    el("option", { value: "" }, "…"),
+    ...runs.map((r) => el("option", { value: r.run_id },
+      `${r.run_id} · ${r.network} · ${r.prompt_variant} · ${r.companies.length} accts · ${r.passed ? "PASS" : "FAIL"}`)),
+  );
+}
+
+// ---------- a live run ----------
+async function startRun() {
+  banner("");
+  const body = {
+    companies: $("companies").value.split(",").map((s) => s.trim()).filter(Boolean),
+    offering: $("offering").value.trim(),
+    prompt: $("prompt").value,
+    budget_usd: $("budget").value.trim(),
+    env: $("env").value,
+  };
+  reset();
+  $("run").disabled = true;
+  $("run").textContent = "Running…";
+  try {
+    await streamEvents("/api/run", body, onEvent);
+  } catch (e) {
+    banner("Run failed: " + e.message);
+  } finally {
+    $("run").disabled = false;
+    $("run").textContent = "Run";
+    loadWallet();
+    loadSaved();
+  }
+}
+// POST, then read the response as it arrives: one JSON event per line.
+async function streamEvents(url, body, handle) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(errorText(await r.json().catch(() => ({}))) || r.statusText);
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, nl); buffer = buffer.slice(nl + 1);
+      if (line.trim()) handle(JSON.parse(line));
+    }
+  }
+}
+function errorText(body) {
+  const d = body.detail;
+  return Array.isArray(d) ? d.map((x) => x.msg).join("; ") : d;
+}
+async function postJSON(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  if (!r.ok) throw new Error(errorText(await r.json().catch(() => ({}))) || r.statusText);
+  return r.json();
+}
+function onEvent(ev) {
+  if (ev.type === "session") {
+    explorer = ev.explorer;
+    showRunInfo(ev.run_id, ev.network, $("prompt").value, ev.budget_usd, "live", ev.cap);
+    $("s-id").textContent = ev.session_id;
+    $("s-cap").textContent = usd(ev.budget_usd);
+  } else if (ev.type === "call") {
+    calls.set(ev.entry.call_id, ev.entry);
+    renderCalls([...calls.values()]);
+  } else if (ev.type === "session_record") {
+    renderSession(ev.record);
+  } else if (ev.type === "result") {
+    render(ev.result);
+  } else if (ev.type === "error") {
+    banner(ev.message);
+  }
+}
+function reset() {
+  result = null; calls = new Map();
+  $("calls").replaceChildren(el("p", { class: "empty" }, "Starting… creating the payment session."));
+  clearSession("s-");
+  $("verdict").textContent = "–"; $("verdict").className = "verdict muted";
+  $("checks").replaceChildren();
+  for (const id of ["said-calls", "said-spent", "said-briefs", "rec-calls", "rec-spent", "rec-declined"]) setStat(id, "–");
+  $("briefs").replaceChildren(el("p", { class: "empty" }, "Briefs appear when the run finishes."));
+}
+
+// ---------- rendering ----------
+function render(r, how = "finished") {
+  result = r;
+  showRunInfo(r.run_id, r.network, r.prompt_variant, r.budget_usd, how, r.cap);
+  explorer = r.explorer || (r.network === "mainnet" ? "https://basescan.org" : "https://sepolia.basescan.org");
+  renderCalls(r.tool_log);
+  renderSession(r.session_record, r.session_id);
+  renderVersus(r);
+  renderVerifier(r.verification);
+  renderBriefs();
+}
+function showRunInfo(runId, network, prompt, budget, how, cap) {
+  $("runinfo").replaceChildren(
+    "On screen: ", el("b", {}, `run ${runId}`), " · ",
+    el("span", { class: "pill " + (network === "mainnet" ? "bad" : "info") }, network),
+    ` · ${prompt} prompt · cap ${usd(budget)}${clampNote(cap)} · ${how}`,
+  );
+}
+function clampNote(cap) {
+  return cap?.clamped ? ` (asked for ${usd(cap.requested_usd)}, limited by the operator ceiling)` : "";
+}
+function setStat(id, text, mismatch = false) {
+  $(id).querySelector("b").textContent = text;
+  $(id).classList.toggle("mismatch", mismatch);
+}
+function sessionSpent(record) {
+  const cap = Number(record?.limits?.maxSpendAmount?.value);
+  const available = Number(record?.availableLimits?.availableSpendAmount?.value);
+  return Number.isFinite(cap) && Number.isFinite(available) ? cap - available : null;
+}
+function renderVersus(r) {
+  const claim = r.claim, log = r.tool_log;
+  const settled = log.filter((e) => e.payment_outcome === "settled");
+  const declined = log.filter((e) => String(e.payment_outcome).startsWith("declined"));
+  const spent = sessionSpent(r.session_record);
+  const settledCompanies = new Set(settled.map((e) => companyKey(e.company)));
+  const briefsBeyondPaid = claim.briefs.some((b) => !settledCompanies.has(companyKey(b.company)));
+  setStat("said-calls", claim.paid_calls, claim.paid_calls !== settled.length);
+  setStat("said-spent", usd(claim.total_spent_usd), spent != null && Math.abs(claim.total_spent_usd - spent) > 0.0001);
+  setStat("said-briefs", claim.briefs.length, briefsBeyondPaid);
+  setStat("rec-calls", settled.length);
+  setStat("rec-spent", usd(spent));
+  setStat("rec-declined", declined.length);
+}
+function renderCalls(log, box = $("calls")) {
+  if (!log.length) { box.replaceChildren(el("p", { class: "empty" }, "No searches.")); return; }
+  box.replaceChildren(...log.map((e) => {
+    let status;
+    if (e.stage === "searching") status = el("span", { class: "pill info" }, "searching…");
+    else if (e.stage === "paying") status = el("span", { class: "pill info" }, `402 · ${usd(e.price_usd)} · price ok · paying…`);
+    else {
+      const [kind, text] = OUTCOMES[e.payment_outcome] || ["warn", e.payment_outcome];
+      status = el("span", { class: `pill ${kind}` }, e.payment_outcome === "settled" ? `${text} ${usd(e.amount_usd)}` : text);
+    }
+    const detail = e.tx_hash
+      ? el("div", { class: "detail" }, "tx ", link(`${explorer}/tx/${e.tx_hash}`, e.tx_hash.slice(0, 10) + "…" + e.tx_hash.slice(-6)))
+      : el("div", { class: "detail" }, e.detail ? e.detail.slice(0, 160) : e.query);
+    return el("div", { class: "call" }, el("span", { class: "company" }, `${e.call_id} · ${e.company}`), status, detail);
+  }));
+}
+function clearSession(prefix) {
+  for (const k of ["cap", "spent", "available", "expiry", "id", "aws"]) $(prefix + k).textContent = "–";
+  $(prefix + "bar").style.width = "0";
+}
+function renderSession(record, sessionId, prefix = "s-") {
+  if (!record) return;
+  const cap = record.limits?.maxSpendAmount?.value;
+  const available = record.availableLimits?.availableSpendAmount?.value;
+  const spent = sessionSpent(record);
+  $(prefix + "cap").textContent = usd(cap);
+  $(prefix + "available").textContent = usd(available);
+  $(prefix + "spent").textContent = usd(spent);
+  $(prefix + "expiry").textContent = expiryText(record);
+  $(prefix + "id").textContent = record.paymentSessionId || sessionId || "–";
+  const logs = awsLogsLink(record.paymentManagerArn, record.paymentSessionId || sessionId);
+  $(prefix + "aws").replaceChildren(logs ? link(logs, "CloudWatch logs for this session ↗") : "–");
+  $(prefix + "bar").style.width = cap && spent != null ? Math.min(100, (spent / cap) * 100) + "%" : "0";
+}
+function expiryText(record) {
+  if (!record.expiryTimeInMinutes) return "–";
+  const created = new Date(String(record.createdAt).replace(" ", "T"));
+  if (isNaN(created)) return `${record.expiryTimeInMinutes} min`;
+  const until = new Date(created.getTime() + record.expiryTimeInMinutes * 60000);
+  const clock = until.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `${record.expiryTimeInMinutes} min, until ${clock}` + (until < new Date() ? " (expired)" : "");
+}
+// AgentCore writes payment logs for each manager to this log group
+// (see infra/setup_observability.py); filter them to one session.
+function awsLogsLink(managerArn, sessionId) {
+  if (!managerArn || !sessionId) return null;
+  const [, , , region] = managerArn.split(":");
+  const group = "/aws/vendedlogs/bedrock-agentcore/payments/" + managerArn.split("/").pop();
+  const enc = (s) => encodeURIComponent(encodeURIComponent(s)).replace(/%/g, "$");  // the console's own URL encoding
+  return `https://${region}.console.aws.amazon.com/cloudwatch/home?region=${region}#logsV2:log-groups/log-group/` +
+    `${enc(group)}/log-events$3FfilterPattern$3D${enc(`"${sessionId}"`)}`;
+}
+function renderVerifier(v) {
+  $("verdict").textContent = v.passed ? "✓ PASS" : "✗ FAIL";
+  $("verdict").className = "verdict " + (v.passed ? "pill ok" : "pill bad");
+  $("checks").replaceChildren(...v.checks.map((c) => el("div", { class: "check" },
+    el("span", { class: "mark", style: `color: var(--${c.passed ? "ok" : "bad"})` }, c.passed ? "✓" : "✗"),
+    el("span", {}, el("b", {}, c.name), c.detail ? " — " + c.detail : ""),
+    el("span", { class: "vs" }, `recorded: ${fmt(c.expected)} · claimed: ${fmt(c.actual)}`),
+  )));
+}
+function fmt(v) { return Array.isArray(v) ? (v.length ? v.join(", ") : "none") : String(v); }
+
+function renderBriefs() {
+  $("mode-governed").classList.toggle("on", mode === "governed");
+  $("mode-ungoverned").classList.toggle("on", mode === "ungoverned");
+  if (!result) return;
+  const status = new Map(result.verification.briefs.map((b) => [companyKey(b.company), b]));
+  const cards = result.claim.briefs.map((brief) => {
+    const s = status.get(companyKey(brief.company)) || { verified: false, reasons: ["not checked"] };
+    if (mode === "governed" && !s.verified) return blockedCard(brief.company, s.reasons);
+    return briefCard(brief, s.verified);
+  });
+  $("briefs").replaceChildren(...(cards.length ? cards : [el("p", { class: "empty" }, "The agent delivered no briefs.")]));
+}
+function briefCard(b, verified) {
+  const label = verified
+    ? el("span", { class: "pill ok" }, "✓ verified against the records")
+    : el("span", { class: "pill warn" }, "agent output — not verified");
+  const fact = b.hard_fact && b.hard_fact.value
+    ? el("p", {}, el("b", {}, (b.hard_fact.label || "Hard fact") + ": "), b.hard_fact.value, " ",
+        el("span", { class: "src" }, "(", b.hard_fact.source_url ? link(b.hard_fact.source_url, "source") : "no source", ")"))
+    : el("p", { class: "muted" }, "Hard fact: not found in search results");
+  return el("article", { class: "panel brief" + (verified ? "" : " unverified") },
+    label,
+    el("h3", {}, b.company),
+    el("ul", {}, ...b.signals.map((s) => el("li", {}, s.summary, el("div", { class: "src" }, link(s.source_url))))),
+    fact,
+    el("p", {}, el("b", {}, "Outreach angle: "), b.outreach_angle),
+  );
+}
+function blockedCard(company, reasons) {
+  return el("article", { class: "panel brief blocked" },
+    el("span", { class: "pill bad" }, "⛔ blocked by the verifier"),
+    el("h3", {}, company),
+    el("ul", {}, ...reasons.map((r) => el("li", {}, r))),
+  );
+}
+
+// ---------- chat ----------
+let chat = null;  // {chat_id, session_id, network, ...} from the server
+function chatBanner(text) { $("chat-banner").textContent = text || ""; $("chat-banner").classList.toggle("show", !!text); }
+function chatBusy(busy) {
+  for (const id of ["chat-text", "chat-send"]) $(id).disabled = busy || !chat;
+  $("chat-verify").disabled = busy || !chat;
+  $("chat-start").disabled = busy;
+}
+function addMessage(role, text) {
+  const box = $("transcript");
+  box.querySelector(".empty")?.remove();
+  const node = el("div", { class: "msg " + role }, ...(role === "agent" ? formatReply(text) : [text]));
+  box.append(node);
+  box.scrollTop = box.scrollHeight;
+  return node;
+}
+// Just enough formatting for the agent's replies: paragraphs, "- " lists,
+// **bold** and links. Built as DOM nodes, never as HTML strings.
+function formatReply(text, unbacked = new Set()) {
+  const blocks = [];
+  let list = null;
+  for (const line of String(text).split("\n")) {
+    const item = line.match(/^\s*[-*•]\s+(.*)/);
+    if (item) { if (!list) blocks.push(list = el("ul")); list.append(el("li", {}, ...inline(item[1], unbacked))); continue; }
+    list = null;
+    if (line.trim()) blocks.push(el("p", {}, ...inline(line.replace(/^#+\s*/, ""), unbacked)));
+  }
+  return blocks;
+}
+function inline(text, unbacked = new Set()) {
+  const parts = [];
+  const re = /\*\*(.+?)\*\*|(https?:\/\/[^\s<>()\[\]"'`]+)/g;
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    parts.push(text.slice(last, m.index));
+    if (m[1]) parts.push(el("b", {}, ...inline(m[1], unbacked)));
+    else {
+      const url = m[2].replace(/[.,;:!?*_]+$/, "");  // same trimming as the verifier
+      parts.push(unbacked.has(url) ? el("span", { class: "unbacked" }, "⚠ ", link(url)) : link(url));
+      parts.push(m[2].slice(url.length));
+    }
+    last = re.lastIndex;
+  }
+  parts.push(text.slice(last));
+  return parts;
+}
+// Each agent reply arrives with a check made by plain code (app/verifier.py
+// check_reply): did every URL it cites come back from a paid search?
+let replies = [];
+function addReply(text, check) {
+  const reply = { text, check, node: addMessage("agent", "") };
+  replies.push(reply);
+  renderReply(reply);
+}
+function renderReply({ text, check, node }) {
+  const status = check?.status || "no_sources";
+  if (mode === "governed" && status === "unbacked") {
+    node.className = "msg agent blocked";
+    node.replaceChildren(
+      el("span", { class: "pill bad label" }, "⛔ blocked by the verifier"),
+      el("ul", {}, ...check.reasons.map((r) => el("li", {}, r))),
+      el("p", { class: "muted" }, "Switch to Ungoverned to see what the agent wrote."),
+    );
+    return;
+  }
+  const unbacked = new Set((check?.sources || []).filter((s) => !s.backed).map((s) => s.url));
+  const label = {
+    verified: el("span", { class: "pill ok label" }, "✓ every source came from a paid search"),
+    unbacked: el("span", { class: "pill warn label" }, `agent output — not verified · ${unbacked.size} source(s) no paid search returned`),
+    no_sources: el("span", { class: "pill info label" }, "no sources cited — nothing here can be checked"),
+  }[status];
+  node.className = "msg agent" + (status === "unbacked" ? " unverified" : "");
+  node.replaceChildren(label, ...formatReply(text, unbacked));
+}
+function setMode(m) {
+  mode = m;
+  save("mode", m);
+  for (const prefix of ["mode-", "chat-mode-"]) {
+    $(prefix + "governed").classList.toggle("on", m === "governed");
+    $(prefix + "ungoverned").classList.toggle("on", m === "ungoverned");
+  }
+  renderBriefs();
+  replies.forEach(renderReply);
+}
+async function startChat() {
+  chatBanner("");
+  chatBusy(true);
+  try {
+    chat = await postJSON("/api/chat", { env: $("env").value, budget_usd: $("chat-budget").value.trim() });
+    explorer = chat.explorer;
+    calls = new Map();
+    $("c-calls").replaceChildren(el("p", { class: "empty" }, "No searches yet."));
+    clearSession("cs-");
+    renderSession(chat.session_record, chat.session_id, "cs-");
+    $("transcript").replaceChildren();
+    replies = [];
+    $("chat-info").replaceChildren(
+      "Chat ", el("b", {}, chat.chat_id), " · ",
+      el("span", { class: "pill " + (chat.network === "mainnet" ? "bad" : "info") }, chat.network),
+      ` · session cap ${usd(chat.budget_usd)}${clampNote(chat.cap)}, set by app code. The model can't change it.`,
+    );
+    addMessage("note", "New payment session created. Ask about a target account.");
+  } catch (e) {
+    chatBanner("Could not start a chat: " + e.message);
+  } finally {
+    chatBusy(false);
+    $("chat-text").focus();
+  }
+}
+async function sendChat(event) {
+  event.preventDefault();
+  const text = $("chat-text").value.trim();
+  if (!text || !chat) return;
+  chatBanner("");
+  $("chat-text").value = "";
+  addMessage("user", text);
+  const thinking = addMessage("note", "Agent is working…");
+  chatBusy(true);
+  try {
+    await streamEvents(`/api/chat/${chat.chat_id}/message`, { text }, (ev) => {
+      if (ev.type === "call") {
+        calls.set(ev.entry.call_id, ev.entry);
+        renderCalls([...calls.values()], $("c-calls"));
+        if (ev.entry.payment_outcome === "declined_expired") {
+          chatBanner("This chat's payment session has expired. Start a new chat for a new session.");
+        }
+      }
+      else if (ev.type === "session_record") renderSession(ev.record, chat.session_id, "cs-");
+      else if (ev.type === "reply") addReply(ev.text || "(no reply)", ev.check);
+      else if (ev.type === "error") chatBanner(ev.message);
+    });
+  } catch (e) {
+    chatBanner("Message failed: " + e.message);
+  } finally {
+    thinking.remove();
+    chatBusy(false);
+    loadWallet();
+    $("chat-text").focus();
+  }
+}
+async function verifyChat() {
+  chatBanner("");
+  chatBusy(true);
+  const note = addMessage("note", "Asking the agent for its report (written without tools), then checking it against the records…");
+  try {
+    const r = await postJSON(`/api/chat/${chat.chat_id}/verify`);
+    note.remove();
+    reset();
+    render(r, "verification of chat " + chat.chat_id);  // fills the Run tab, ready if you open it
+    addReportCard(r);
+    loadSaved();
+  } catch (e) {
+    note.remove();
+    chatBanner("Verify failed: " + e.message);
+  } finally {
+    chatBusy(false);
+  }
+}
+function addReportCard(r) {
+  const v = r.verification;
+  const settled = r.tool_log.filter((e) => e.payment_outcome === "settled").length;
+  const card = addMessage("report", "");
+  card.replaceChildren(
+    el("span", { class: "pill label " + (v.passed ? "ok" : "bad") }, v.passed ? "✓ Verify now: PASS" : "✗ Verify now: FAIL"),
+    el("p", {}, `The agent's report: ${r.claim.paid_calls} paid searches, ${usd(r.claim.total_spent_usd)}, ${r.claim.briefs.length} briefs. ` +
+      `Recorded: ${settled} settled, ${usd(sessionSpent(r.session_record))} spent (AgentCore).`),
+    el("ul", {}, ...v.checks.map((c) => el("li", {},
+      (c.passed ? "✓ " : "✗ ") , el("b", {}, c.name), c.detail ? " — " + c.detail : ""))),
+    el("p", {}, `${r.governed.blocked.length} of ${r.claim.briefs.length} briefs blocked when governed. `,
+      Object.assign(el("button", {}, "Open the full report"), { onclick: () => showTab("run") })),
+  );
+}
+function showTab(name) {
+  for (const n of ["run", "chat"]) {
+    $("view-" + n).hidden = n !== name;
+    $("tab-" + n).classList.toggle("on", n === name);
+  }
+  save("tab", name);
+}
+
+// ---------- wiring ----------
+$("tab-run").addEventListener("click", () => showTab("run"));
+$("tab-chat").addEventListener("click", () => showTab("chat"));
+$("chat-start").addEventListener("click", startChat);
+$("chat-form").addEventListener("submit", sendChat);
+$("chat-verify").addEventListener("click", verifyChat);
+$("run").addEventListener("click", startRun);
+$("env").addEventListener("change", () => { save("env", $("env").value); loadEnvs(); });
+$("saved").addEventListener("change", async () => {
+  if (!$("saved").value) return;
+  banner("");
+  reset();
+  try { render(await getJSON(`/api/runs/${$("saved").value}`), "replay of a saved run"); } catch (e) { banner("Could not load run: " + e.message); }
+});
+for (const m of ["governed", "ungoverned"]) {
+  $("mode-" + m).addEventListener("click", () => setMode(m));
+  $("chat-mode-" + m).addEventListener("click", () => setMode(m));
+}
+// ?run=<id>&mode=governed opens a saved run directly: a bookmarkable backup for the stage.
+const params = new URLSearchParams(location.search);
+if (["governed", "ungoverned"].includes(params.get("mode"))) mode = params.get("mode");
+setMode(mode);
+showTab(params.get("run") ? "run" : ["run", "chat"].includes(params.get("tab")) ? params.get("tab") : load("tab") || "run");
+loadEnvs().catch((e) => banner("Could not read settings: " + e.message));
+loadSaved().catch(() => {});
+if (params.get("run")) getJSON(`/api/runs/${encodeURIComponent(params.get("run"))}`).then((r) => render(r, "replay of a saved run")).catch((e) => banner("Could not load run: " + e.message));
+</script>
+</body>
+</html>
